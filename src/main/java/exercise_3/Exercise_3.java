@@ -58,10 +58,10 @@ public class Exercise_3 {
         }
     }
 
-    private static class merge extends AbstractFunction2<Integer,Integer,Integer> implements Serializable {
+    private static class merge extends AbstractFunction2<Tuple2<Integer,List<Long>>,Tuple2<Integer,List<Long>>,Tuple2<Integer,List<Long>>> implements Serializable {
         @Override
-        public Integer apply(Integer o, Integer o2) {
-            if (o >= o2) {
+        public Tuple2<Integer,List<Long>> apply(Tuple2<Integer,List<Long>> o, Tuple2<Integer,List<Long>> o2) {
+            if (o._1 >= o2._1) {
                 return o2;
             } else {
                 return o;

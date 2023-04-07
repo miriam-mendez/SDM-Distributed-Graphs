@@ -37,16 +37,14 @@ public class Exercise_3 {
             this.cost = cost;
             this.path = path;
         }
-        public Vertex() { // create an empty vertex
-            this.cost = Integer.MAX_VALUE;
-            this.path = new ArrayList<Long>();
-        }
+
         public Integer cost() {return cost;}
 
         public List<Long> path() {return path;}
 
-        public String toString() {
-            return path + " with cost " + cost;
+        public String toString(Map<Long,String> labels) {
+            List<String> list = path.stream().map(labels::get).collect(Collectors.toList());
+            return list + " with cost " + cost;
         }
     }
 
@@ -73,7 +71,7 @@ public class Exercise_3 {
             } else {
                 // propagate source vertex value
                 List<Long> path = sourceVertex._2().path();
-                path.add(dstVertex._2().cost().longValue());
+                path.add(Long.parseLong(String.valueOf(dstVertex._1())));
                 Integer cost = sourceVertex._2.cost() + triplet.toTuple()._3();
                 Vertex newvert = new Vertex(cost, path);
                 return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Vertex>(triplet.dstId(),newvert)).iterator()).asScala();
@@ -99,7 +97,7 @@ public class Exercise_3 {
         .build();
 
     List<Tuple2<Object,Vertex>> vertices = Lists.newArrayList(
-            new Tuple2<Object,Vertex>(1l,new Vertex(0, Lists.newArrayList())),
+            new Tuple2<Object,Vertex>(1l,new Vertex(0, Lists.newArrayList(1l))),
             new Tuple2<Object,Vertex>(2l,new Vertex(Integer.MAX_VALUE, Lists.newArrayList())),
             new Tuple2<Object,Vertex>(3l,new Vertex(Integer.MAX_VALUE, Lists.newArrayList())),
             new Tuple2<Object,Vertex>(4l,new Vertex(Integer.MAX_VALUE, Lists.newArrayList())),
@@ -124,7 +122,7 @@ public class Exercise_3 {
 
     GraphOps ops = new GraphOps(G, scala.reflect.ClassTag$.MODULE$.apply(Vertex.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
-    ops.pregel(Integer.MAX_VALUE,
+    ops.pregel(new Vertex(Integer.MAX_VALUE, Lists.newArrayList()),
             Integer.MAX_VALUE,
             EdgeDirection.Out(),
             new VProg(),
@@ -135,7 +133,7 @@ public class Exercise_3 {
         .toJavaRDD()
         .foreach(v -> {
             Tuple2<Object,Vertex> vertex = (Tuple2<Object,Vertex>)v;
-            System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+ vertex._2.toString());
+            System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+ vertex._2.toString(labels));
         });
     }
 

@@ -16,12 +16,12 @@ import utils.Utils;
 
 public class Main {
 
-	static String HADOOP_COMMON_PATH = "/home/miriam/Documentos/SDM/Lab2/SparkGraphXassignment/SparkGraphXassignment/src/main/resources"; 
+	static String HADOOP_COMMON_PATH = "/home/miriam/Documentos/SDM/SDM-Distributed-Graphs/src/main/resources"; 
     
 	public static void main(String[] args) throws Exception {
 		System.setProperty("hadoop.home.dir", HADOOP_COMMON_PATH);
 
-		SparkConf conf = new SparkConf().set("spark.kyro.registrationRequired", "false").setAppName("SparkGraphs_II").setMaster("local[*]");
+		SparkConf conf = new SparkConf().setAppName("sdm-distributed-graphs").setMaster("local[*]");;
 		JavaSparkContext ctx = new JavaSparkContext(conf);
 		ctx.setCheckpointDir(Files.createTempDir().getAbsolutePath());
 		

@@ -26,7 +26,7 @@ public class Exercise_2 {
     private static class VProg extends AbstractFunction3<Long,Integer,Integer,Integer> implements Serializable {
         @Override
         public Integer apply(Long vertexID, Integer vertexValue, Integer message) {
-            if (message == Integer.MAX_VALUE) {             // superstep 0
+            if (message == Integer.MAX_VALUE) {             // superstep 0 
                 return vertexValue;
             } else {                                        // superstep > 0
                 return Math.min(vertexValue,message);
@@ -53,11 +53,7 @@ public class Exercise_2 {
     private static class merge extends AbstractFunction2<Integer,Integer,Integer> implements Serializable {
         @Override
         public Integer apply(Integer o, Integer o2) {
-            if (o >= o2) {
-                return o2;
-            } else {
-                return o;
-            }
+            return null;
         }
     }
 

@@ -4,6 +4,8 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.protobuf.Message;
+
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.graphx.*;
@@ -23,49 +25,66 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import java.util.stream.Collectors;
+
 public class Exercise_3 {
 
-    private static class VProg extends AbstractFunction3<Long,Tuple2<Integer,List<Long>>,Tuple2<Integer,List<Long>>,Tuple2<Integer,List<Long>>> implements Serializable {
+    public static class Vertex implements Serializable{
+        private Integer cost;
+        private List<Long> path;
+
+        public Vertex(Integer cost, List<Long> path) {
+            this.cost = cost;
+            this.path = path;
+        }
+        public Vertex() { // create an empty vertex
+            this.cost = Integer.MAX_VALUE;
+            this.path = new ArrayList<Long>();
+        }
+        public Integer cost() {return cost;}
+
+        public List<Long> path() {return path;}
+
+        public String toString() {
+            return path + " with cost " + cost;
+        }
+    }
+
+    private static class VProg extends AbstractFunction3<Long, Vertex,Vertex,Vertex> implements Serializable {
         @Override
-        public Tuple2<Integer,List<Long>> apply(Long vertexID, Tuple2<Integer,List<Long>> vertexValue, Tuple2<Integer,List<Long>> message) {
-            if (message._1() == Integer.MAX_VALUE) {             // superstep 0
+        public Vertex apply(Long vertexID, Vertex vertexValue, Vertex message) {
+            if (message.cost() == Integer.MAX_VALUE) {             // superstep 0
                 return vertexValue;
             } else {                                        // superstep > 0
-                if(message._1() <= vertexValue._1())
-                    return message;
-                else
-                    return vertexValue;
+                return  vertexValue.cost() < message.cost() ? vertexValue : message;
             }
         }
     }
 
-    private static class sendMsg extends AbstractFunction1<EdgeTriplet<Tuple2<Integer,List<Long>>,Integer>, Iterator<Tuple2<Object,Tuple2<Integer,List<Long>>>>> implements Serializable {
+    private static class sendMsg extends AbstractFunction1<EdgeTriplet<Vertex,Integer>, Iterator<Tuple2<Object,Vertex>>> implements Serializable {
         @Override
-        public Iterator<Tuple2<Object, Tuple2<Integer,List<Long>>>> apply(EdgeTriplet<Tuple2<Integer,List<Long>>, Integer> triplet) {
-            Tuple2<Object,Tuple2<Integer,List<Long>>> sourceVertex = triplet.toTuple()._1();
-            Tuple2<Object,Tuple2<Integer,List<Long>>> dstVertex = triplet.toTuple()._2();
+        public Iterator<Tuple2<Object, Vertex>> apply(EdgeTriplet<Vertex, Integer> triplet) {
+            Tuple2<Object,Vertex> sourceVertex = triplet.toTuple()._1();
+            Tuple2<Object,Vertex> dstVertex = triplet.toTuple()._2();
 
-            if (sourceVertex._2._1() == Integer.MAX_VALUE) {   // source vertex value is smaller than dst vertex?
+            if (sourceVertex._2.cost() == Integer.MAX_VALUE) {   // source vertex value is smaller than dst vertex?
                 // do nothing
-                return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Tuple2<Integer,List<Long>>>>().iterator()).asScala();
+                return JavaConverters.asScalaIteratorConverter(new ArrayList<Tuple2<Object,Vertex>>().iterator()).asScala();
             } else {
                 // propagate source vertex value
-                List<Long> path = sourceVertex._2()._2();
-                path.add(Long.parseLong(String.valueOf(dstVertex._2()._1())));
-
-                return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Tuple2<Integer,List<Long>>>(triplet.dstId(),new Tuple2<>(sourceVertex._2._1() + triplet.toTuple()._3(),path))).iterator()).asScala();
+                List<Long> path = sourceVertex._2().path();
+                path.add(dstVertex._2().cost().longValue());
+                Integer cost = sourceVertex._2.cost() + triplet.toTuple()._3();
+                Vertex newvert = new Vertex(cost, path);
+                return JavaConverters.asScalaIteratorConverter(Arrays.asList(new Tuple2<Object,Vertex>(triplet.dstId(),newvert)).iterator()).asScala();
             }
         }
     }
 
-    private static class merge extends AbstractFunction2<Tuple2<Integer,List<Long>>,Tuple2<Integer,List<Long>>,Tuple2<Integer,List<Long>>> implements Serializable {
+    private static class merge extends AbstractFunction2<Vertex,Vertex,Vertex> implements Serializable {
         @Override
-        public Tuple2<Integer,List<Long>> apply(Tuple2<Integer,List<Long>> o, Tuple2<Integer,List<Long>> o2) {
-            if (o._1 >= o2._1) {
-                return o2;
-            } else {
-                return o;
-            }
+        public Vertex apply(Vertex o, Vertex o2) {
+            return null;
         }
     }
 
@@ -79,13 +98,13 @@ public class Exercise_3 {
         .put(6l, "F")
         .build();
 
-    List<Tuple2<Object,Integer>> vertices = Lists.newArrayList(
-            new Tuple2<Object,Integer>(1l,0),
-            new Tuple2<Object,Integer>(2l,Integer.MAX_VALUE),
-            new Tuple2<Object,Integer>(3l,Integer.MAX_VALUE),
-            new Tuple2<Object,Integer>(4l,Integer.MAX_VALUE),
-            new Tuple2<Object,Integer>(5l,Integer.MAX_VALUE),
-            new Tuple2<Object,Integer>(6l,Integer.MAX_VALUE)
+    List<Tuple2<Object,Vertex>> vertices = Lists.newArrayList(
+            new Tuple2<Object,Vertex>(1l,new Vertex(0, Lists.newArrayList())),
+            new Tuple2<Object,Vertex>(2l,new Vertex(Integer.MAX_VALUE, Lists.newArrayList())),
+            new Tuple2<Object,Vertex>(3l,new Vertex(Integer.MAX_VALUE, Lists.newArrayList())),
+            new Tuple2<Object,Vertex>(4l,new Vertex(Integer.MAX_VALUE, Lists.newArrayList())),
+            new Tuple2<Object,Vertex>(5l,new Vertex(Integer.MAX_VALUE, Lists.newArrayList())),
+            new Tuple2<Object,Vertex>(6l,new Vertex(Integer.MAX_VALUE, Lists.newArrayList()))
     );
     List<Edge<Integer>> edges = Lists.newArrayList(
             new Edge<Integer>(1l,2l, 4), // A --> B (4)
@@ -97,13 +116,13 @@ public class Exercise_3 {
             new Edge<Integer>(4l, 6l, 11) // D --> F (11)
     );
 
-    JavaRDD<Tuple2<Object,Integer>> verticesRDD = ctx.parallelize(vertices);
+    JavaRDD<Tuple2<Object,Vertex>> verticesRDD = ctx.parallelize(vertices);
     JavaRDD<Edge<Integer>> edgesRDD = ctx.parallelize(edges);
 
-    Graph<Integer,Integer> G = Graph.apply(verticesRDD.rdd(),edgesRDD.rdd(),1, StorageLevel.MEMORY_ONLY(), StorageLevel.MEMORY_ONLY(),
-            scala.reflect.ClassTag$.MODULE$.apply(Integer.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
+    Graph<Vertex,Integer> G = Graph.apply(verticesRDD.rdd(),edgesRDD.rdd(),new Vertex(Integer.MAX_VALUE, Lists.newArrayList()), StorageLevel.MEMORY_ONLY(), StorageLevel.MEMORY_ONLY(),
+            scala.reflect.ClassTag$.MODULE$.apply(Vertex.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
-    GraphOps ops = new GraphOps(G, scala.reflect.ClassTag$.MODULE$.apply(Integer.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
+    GraphOps ops = new GraphOps(G, scala.reflect.ClassTag$.MODULE$.apply(Vertex.class),scala.reflect.ClassTag$.MODULE$.apply(Integer.class));
 
     ops.pregel(Integer.MAX_VALUE,
             Integer.MAX_VALUE,
@@ -111,12 +130,12 @@ public class Exercise_3 {
             new VProg(),
             new sendMsg(),
             new merge(),
-            ClassTag$.MODULE$.apply(Integer.class))
+            ClassTag$.MODULE$.apply(Vertex.class))
         .vertices()
         .toJavaRDD()
         .foreach(v -> {
-            Tuple2<Object,Integer> vertex = (Tuple2<Object,Integer>)v;
-            System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+vertex._2);
+            Tuple2<Object,Vertex> vertex = (Tuple2<Object,Vertex>)v;
+            System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+ vertex._2.toString());
         });
     }
 

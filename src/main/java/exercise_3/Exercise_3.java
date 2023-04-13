@@ -54,7 +54,7 @@ public class Exercise_3 {
             if (message.cost() == Integer.MAX_VALUE) {             // superstep 0
                 return vertexValue;
             } else {                                        // superstep > 0
-                return  vertexValue.cost() < message.cost() ? vertexValue : message;
+                return  vertexValue.cost() <= message.cost() ? vertexValue : message;
             }
         }
     }
@@ -130,7 +130,7 @@ public class Exercise_3 {
             new merge(),
             ClassTag$.MODULE$.apply(Vertex.class))
         .vertices()
-        .toJavaRDD()
+        .toJavaRDD().sortBy(f -> ((Tuple2<Object, Vertex>) f)._1, true, 0)
         .foreach(v -> {
             Tuple2<Object,Vertex> vertex = (Tuple2<Object,Vertex>)v;
             System.out.println("Minimum cost to get from "+labels.get(1l)+" to "+labels.get(vertex._1)+" is "+ vertex._2.toString(labels));
